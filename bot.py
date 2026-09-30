@@ -1,4 +1,4 @@
-import base64
+   import base64
 import datetime
 import hashlib
 import hmac
@@ -24,7 +24,7 @@ REQUIRED_CHANNEL = "@honestcrazy11"
 FB_HOTMAIL_REWARD = 0.05
 FB_COOKIES_REWARD = 0.04
 HOTMAIL_10_PAGE_REWARD = 0.25
-INSTAGRAM_2FA_REWARD = 0.06
+INSTAGRAM_2FA_REWARD = 0.034  # Updated to 0.034
 
 bot = telebot.TeleBot(TOKEN)
 logging.basicConfig(level=logging.INFO)
@@ -59,8 +59,8 @@ def log_to_google_sheet(
         task_type,
         f"@{username}" if username else "None",
         str(chat_id),
-        gen_name,
-        gen_pass,
+        str(gen_name),
+        str(gen_pass),
         str(uid),
         str(two_fa),
         str(cookies),
@@ -209,7 +209,7 @@ def generate_bangladeshi_credentials():
 def generate_totp(secret):
   try:
     key = base64.b32decode(
-        secret.upper() + "=" *((-len(secret)) % 8)
+        secret.upper() + "=" * ((-len(secret)) % 8)
     )
     counter = struct.pack(">Q", int(datetime.datetime.now().timestamp() // 30))
     hmac_hash = hmac.new(key, counter, hashlib.sha1).digest()
@@ -568,7 +568,7 @@ def handle_callback(call):
     target_user = int(data.split("_")[1])
     bot.answer_callback_query(call.id, "Task Approved Successfully!")
     target_u_data = get_user(target_user)
-    reward = target_u_data.get("pending_reward", 0.05)
+    reward = target_u_data.get("pending_reward", INSTAGRAM_2FA_REWARD)
 
     new_balance = target_u_data["balance"] + reward
     new_success = target_u_data["total_success"] + 1
@@ -589,7 +589,7 @@ def handle_callback(call):
     try:
       bot.send_message(
           target_user,
-          f"🎉 Your task has been approved! Reward of ${reward:.2f} added to your"
+          f"🎉 Your task has been approved! Reward of ${reward:.3f} added to your"
           " balance.",
       )
       bot.edit_message_text(
