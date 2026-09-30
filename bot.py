@@ -8,107 +8,24 @@ import random
 import sqlite3
 import string
 import struct
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import telebot
 from telebot import types
 
-# Bot Configuration
 TOKEN = "8833506125:AAF09XldZ6p-niAMMZjspnAfnYK1u8r9nNs"
 ADMIN_CHAT_ID = 8444176616
 SUPPORT_USERNAME = "@supekrsupper"
 HELP_USERNAME = "@supekrsupper"
 REQUIRED_CHANNEL = "@honestcrazy11"
 
-# Task Rewards Configuration
 FB_HOTMAIL_REWARD = 0.05
 FB_COOKIES_REWARD = 0.04
 HOTMAIL_10_PAGE_REWARD = 0.25
-INSTAGRAM_2FA_REWARD = 0.034  # Updated to 0.034
+INSTAGRAM_2FA_REWARD = 0.034
 
 bot = telebot.TeleBot(TOKEN)
 logging.basicConfig(level=logging.INFO)
 
-# Google Sheets Setup
-SCOPE = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive",
-]
 
-
-def log_to_google_sheet(
-    task_type,
-    username,
-    chat_id,
-    gen_name,
-    gen_pass,
-    uid,
-    two_fa,
-    cookies,
-    full_token,
-):
-  try:
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        "credentials.json", SCOPE
-    )
-    client = gspread.authorize(creds)
-    sheet = client.open("EarlyLifeBotSubmissions").sheet1
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sheet.append_row([
-        current_time,
-        task_type,
-        f"@{username}" if username else "None",
-        str(chat_id),
-        str(gen_name),
-        str(gen_pass),
-        str(uid),
-        str(two_fa),
-        str(cookies),
-        str(full_token),
-    ])
-  except Exception as e:
-    logging.error(f"Google Sheet Error: {e}")
-
-
-FIRST_NAMES = [
-    "Shakib",
-    "Fahim",
-    "Mintu",
-    "Rakib",
-    "Nayeem",
-    "Tanvir",
-    "Sojib",
-    "Imran",
-    "Arman",
-    "Sumon",
-    "Ripon",
-    "Juel",
-    "Hridoy",
-    "Mahmud",
-    "Shohan",
-    "Mehedi",
-    "Nabil",
-    "Joy",
-    "Al-Amin",
-    "Parvez",
-]
-LAST_NAMES = [
-    "Ahmed",
-    "Hasan",
-    "Khan",
-    "Ali",
-    "Chowdhury",
-    "Talukdar",
-    "Sarker",
-    "Mollah",
-    "Bhuyan",
-    "Mia",
-    "Biswas",
-    "Hawlader",
-]
-
-
-# Database Setup
 def init_db():
   conn = sqlite3.connect("early_life_bot.db")
   cursor = conn.cursor()
@@ -194,16 +111,6 @@ def update_user(chat_id, **kwargs):
     )
   conn.commit()
   conn.close()
-
-
-def generate_bangladeshi_credentials():
-  first = random.choice(FIRST_NAMES)
-  last = random.choice(LAST_NAMES)
-  full_name = f"{first} {last}"
-  letters = string.ascii_lowercase + string.digits
-  rand_pass = "".join(random.choice(letters) for i in range(8))
-  password = f"Pass_{rand_pass}"
-  return full_name, password
 
 
 def generate_totp(secret):
@@ -295,6 +202,20 @@ def send_welcome(message):
       " money by completing tasks.\nPlease use the menu below to start working!"
   )
   bot.send_message(chat_id, welcome_text, reply_markup=get_main_menu())
+
+
+@bot.message_handler(commands=["admin"])
+def admin_panel_command(message):
+  chat_id = message.chat.id
+  if chat_id != ADMIN_CHAT_ID:
+    bot.send_message(chat_id, "⚠️ You are not authorized to use admin commands!")
+    return
+  bot.send_message(
+      chat_id,
+      "👑 **Admin Control Panel Active**\n\nYou will receive user submissions"
+      " and withdrawal requests here automatically.",
+      parse_mode="Markdown",
+  )
 
 
 @bot.message_handler(content_types=["text"])
@@ -431,18 +352,6 @@ def handle_messages(message):
         pending_reward=INSTAGRAM_2FA_REWARD,
     )
 
-    log_to_google_sheet(
-        "Instagram 2FA",
-        user.username,
-        chat_id,
-        ig_user,
-        "N/A",
-        "N/A",
-        secret_key,
-        "N/A",
-        "N/A",
-    )
-
     admin_msg = (
         f"🚨 New Instagram 2FA Task (${INSTAGRAM_2FA_REWARD})\n\n👤 Worker:"
         f" @{user.username or 'None'} ({chat_id})\n📸 IG Username:"
@@ -461,7 +370,7 @@ def handle_messages(message):
       return
 
     if amount < 0.20:
-      bot.send_message(chat_id, "⚠️ Minimum withdrawal amount is $0.20!")
+      bot.send_message(chat_id, "⚠️️ Minimum withdrawal amount is $0.20!")
       return
 
     if amount > u_data["balance"]:
@@ -658,7 +567,7 @@ def handle_callback(call):
           target_user, "❌ Your withdrawal request was rejected by admin."
       )
       bot.edit_message_text(
-          call.message.text + "\n\n✅ STATUS: PAYOUT REJECTED",
+          call.message.text + "\n\n❌ STATUS: PAYOUT REJECTED",
           chat_id,
           call.message.message_id,
       )
@@ -671,15 +580,15 @@ def handle_callback(call):
     markup.add(
         types.InlineKeyboardButton(
             f"🔥 Facebook Hotmail (${FB_HOTMAIL_REWARD}) [ON]",
-            callback_data="fb_task_hotmail_info",
+            callback_data="task_off_alert",
         ),
         types.InlineKeyboardButton(
             f"🍪 Fb Cookies (${FB_COOKIES_REWARD}) [ON]",
-            callback_data="fb_task_cookies_info",
+            callback_data="task_off_alert",
         ),
         types.InlineKeyboardButton(
             f"📄 Hotmail 10 Page (${HOTMAIL_10_PAGE_REWARD}) [ON]",
-            callback_data="fb_task_hotmail_10_page_info",
+            callback_data="task_off_alert",
         ),
         types.InlineKeyboardButton("🔙 Back", callback_data="back_to_main"),
     )
@@ -710,7 +619,9 @@ def handle_callback(call):
 
   elif data == "task_off_alert":
     bot.answer_callback_query(
-        call.id, "⚠️ This task is currently turned off by admin!", show_alert=True
+        call.id,
+        "⚠️ This task format is currently under maintenance!",
+        show_alert=True,
     )
     return
 
@@ -759,10 +670,7 @@ def handle_callback(call):
 
 
 if __name__ == "__main__":
-  print(
-      "Early Life Bot is running with Auto 2FA Generator & Google Sheets"
-      " sync..."
-  )
+  print("Early Life Bot is running successfully...")
   try:
     bot.remove_webhook()
   except Exception:
