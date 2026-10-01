@@ -1,4 +1,4 @@
-import datetime
+  import datetime
 import logging
 import sqlite3
 import telebot
@@ -8,7 +8,7 @@ TOKEN = "8833506125:AAF09XldZ6p-niAMMZjspnAfnYK1u8r9nNs"
 ADMIN_CHAT_ID = 8444176616
 SUPPORT_USERNAME = "@supekrsupper"
 REQUIRED_CHANNEL = "@honestcrazy11"
-INSTAGRAM_2FA_REWARD = 0.034
+FB_COOKIES_REWARD = 0.04
 
 bot = telebot.TeleBot(TOKEN)
 logging.basicConfig(level=logging.INFO)
@@ -25,9 +25,7 @@ def init_db():
             total_success INTEGER DEFAULT 0,
             review_pending INTEGER DEFAULT 0,
             state TEXT,
-            pending_reward REAL DEFAULT 0.0,
-            withdraw_method TEXT,
-            withdraw_amount REAL DEFAULT 0.0
+            pending_reward REAL DEFAULT 0.0
         )
     """)
   conn.commit()
@@ -65,8 +63,6 @@ def get_user(chat_id):
       "review_pending": row[4],
       "state": row[5],
       "pending_reward": row[6],
-      "withdraw_method": row[7],
-      "withdraw_amount": row[8],
   }
 
 
@@ -174,8 +170,8 @@ def handle_messages(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
     markup.add(
         types.InlineKeyboardButton(
-            f"📸 Instagram 2FA (${INSTAGRAM_2FA_REWARD})",
-            callback_data="ig_task_start",
+            f"🍪 Fb Cookies (${FB_COOKIES_REWARD}) [ON]",
+            callback_data="fb_cookies_start",
         )
     )
     bot.send_message(
@@ -209,18 +205,18 @@ def handle_messages(message):
     bot.send_message(chat_id, f"🎧 Support: {SUPPORT_USERNAME}")
     return
 
-  elif state == "WAITING_IG_USERNAME":
+  elif state == "WAITING_FB_COOKIES":
     update_user(
         chat_id,
         state=None,
         total_submitted=u_data["total_submitted"] + 1,
         review_pending=u_data["review_pending"] + 1,
-        pending_reward=INSTAGRAM_2FA_REWARD,
+        pending_reward=FB_COOKIES_REWARD,
     )
 
     admin_msg = (
-        f"🚨 New Instagram Task (${INSTAGRAM_2FA_REWARD})\n\n👤 Worker:"
-        f" @{user.username or 'None'} ({chat_id})\n📸 Username: {text}"
+        f"🚨 New Fb Cookies Task (${FB_COOKIES_REWARD})\n\n👤 Worker:"
+        f" @{user.username or 'None'} ({chat_id})\n🍪 Cookies Data:\n<code>{text}</code>"
     )
     approval_markup = types.InlineKeyboardMarkup(row_width=2)
     approval_markup.add(
@@ -228,7 +224,9 @@ def handle_messages(message):
         types.InlineKeyboardButton("❌ Reject", callback_data=f"rej_{chat_id}"),
     )
     try:
-      bot.send_message(ADMIN_CHAT_ID, admin_msg, reply_markup=approval_markup)
+      bot.send_message(
+          ADMIN_CHAT_ID, admin_msg, parse_mode="HTML", reply_markup=approval_markup
+      )
     except Exception:
       pass
 
@@ -263,7 +261,7 @@ def handle_callback(call):
     target_user = int(data.split("_")[1])
     bot.answer_callback_query(call.id, "Approved!")
     target_u_data = get_user(target_user)
-    reward = target_u_data.get("pending_reward", INSTAGRAM_2FA_REWARD)
+    reward = target_u_data.get("pending_reward", FB_COOKIES_REWARD)
 
     update_user(
         target_user,
@@ -306,11 +304,11 @@ def handle_callback(call):
       pass
     return
 
-  elif data == "ig_task_start":
-    update_user(chat_id, state="WAITING_IG_USERNAME")
+  elif data == "fb_cookies_start":
+    update_user(chat_id, state="WAITING_FB_COOKIES")
     bot.send_message(
         chat_id,
-        "📸 Please send your Instagram Username:",
+        "🍪 Please send your Facebook Cookies data:",
         reply_markup=get_cancel_markup(),
     )
     return
